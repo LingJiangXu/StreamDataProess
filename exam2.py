@@ -1,7 +1,97 @@
 import random
+import threading
+from time import sleep
 
 import numpy as np
+import matplotlib.pyplot as plt
 
+# 数据库类
+class DataStore():
+    def __init__(self, volum=50):
+        self.volum = volum  # 存储容量
+        self.elems = []  # 实例空间
+        self.nums = 0  # 已存储元素量
+        print("INFO: 成功创建数据库实例")
+
+    def __isfull(self):
+        '''判断是否满'''
+        return self.nums == self.volum
+
+    def enStore(self, ele):
+        '''存入元素'''
+        if self.__isfull():
+            return
+        self.elems.append(ele)
+        self.nums += 1
+
+    def deStore(self, start, end):
+        '''读取元素'''
+        if start < self.nums:
+            return [self.elems[i] for i in range(start, min(self.nums, end))]
+            # return self.elems[start, end] if end <= self.nums else self.elems[start, self.nums]
+        else:
+            return None
+
+# 写入函数
+def write_data(store):
+    def Data1():
+        '''符合特征1的二维数据'''
+        dta1 = random.randrange(-25, 25)
+        dta2 = -dta1 + 25 + random.randrange(-5, 5)
+        return dta1, dta2
+
+    def Data2():
+        '''符合特征2的二维数据'''
+        dta1 = random.randrange(-25, 25)
+        dta2 = -dta1 - 25 + random.randrange(-5, 5)
+        return dta1, dta2
+
+    def Data3():
+        '''符合特征3的二维数据，此处用作概念漂移'''
+        dta1 = random.randrange(-25, 25)
+        dta2 = dta1 + 1 + random.randrange(-10, 8)
+        return dta1, dta2
+
+    while True:
+        k = random.choices((1, 2, 3), weights=[4, 4, 1], k=1)
+        wdata = eval("Data{}()".format(k[0]))
+        store.enStore(wdata)
+        wait = np.random.poisson(3, 1)
+        print("INFO: 写入{},{}数据成功，等待{}s继续写入！".format(k, wdata, wait[0]))
+        sleep(wait[0])
+
+# 读取及可视化函数
+def read_data(store):
+
+    def draw(ax, center, points):
+        '''将聚类结果可视化，聚类中心用18号星号表示，聚类点用14号实心圆表示'''
+        plt.xlim(-45, 45)
+        plt.ylim(-50, 50)
+        plt.axvline(0)
+        plt.axhline(0)
+        ax.scatter(center[0][0], center[0][1], s=18, c="r", marker='*')
+        ax.scatter(center[1][0], center[1][1], s=18, c="g", marker='*')
+        ax.scatter([x[0] for x in points[0]], [y[1] for y in points[0]], s=14, c="r", marker='o')
+        ax.scatter([x[0] for x in points[1]], [y[1] for y in points[1]], s=14, c="g", marker='o')
+
+    window = 12
+    start = 0
+    # global rdata
+    while True:
+        sleep(3)
+        start += 1
+        rdata = store.deStore(start, start + window)
+        if rdata:
+            print("INFO: 读取数据成功！为{}".format(rdata))
+            poi, clus = k_means(rdata, 2)
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            draw(ax, poi, clus)
+            plt.pause(2)
+            print("INFO: 读取数据聚类并可视化成功！")
+        else:
+            print("INFO: 读取pass！")
+            continue
 
 # k-means聚类
 def k_means(data_set, k):
@@ -18,8 +108,8 @@ def k_means(data_set, k):
 
     # 定义欧式距离计算
     def euc_dis(x1, x2):
-        result = [0] * len(x1)
-        for i in range(len(x1)):
+        result = [0] * data_dim
+        for i in range(data_dim):
             result[i] = (x1[i] - x2[i]) ** 2
         return (sum(result)) ** 0.5
 
@@ -28,14 +118,15 @@ def k_means(data_set, k):
         cluster = dict(zip([i for i in range(k)], [[] for i in range(k)]))
         for i in data_set:
             distance = [euc_dis(i, j) for j in x_center_set]
-            i_belong = [i for i in range(k) if distance[i] == min(distance)][0]
+            # i_belong = [j for j in range(k) if distance[j] == min(distance)][0]
+            i_belong = distance.index(min(distance))
             cluster[i_belong].append(i)
         return cluster
 
     # 寻找质心
     def find_center(cluster):
         finded_center_set = []
-        for value_set in list(cluster.values()):
+        for value_set in cluster.values():
             center_point = [0] * data_dim
             for i in range(data_dim):
                 center_point[i] = np.mean([j[i] for j in value_set])
@@ -55,6 +146,12 @@ def k_means(data_set, k):
 
 
 if __name__ == '__main__':
-    data_set = ([12, 2], [3, 4], [5, 6], [8, 9], [-1, -3], [-4, -6], [-2, -4])
-    k = 2
-    print(k_means(data_set, k))
+    # 实例化数据库并设置任务线程
+    store = DataStore()
+    write_task = threading.Thread(target=write_data, args=(store,), daemon=True)
+
+    # 启动线程
+    write_task.start()
+    sleep(30)
+    read_data(store)
+
