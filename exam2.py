@@ -103,6 +103,7 @@ def k_means(data_set, k):
     """
 
     # 初始值
+    global cluster
     data_dim = len(data_set[0])
     center_set = random.sample(data_set, k)
 

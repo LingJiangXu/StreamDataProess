@@ -21,7 +21,7 @@ flowchart TB
     end
 ```
 ### 实现细节
-- 聚类函数：```k-means```聚类算法。
+- 聚类函数：<span id="K-means">```k-means```聚类算法。</span>
 ```python
 # k-means聚类
 def k_means(data_set, k):
